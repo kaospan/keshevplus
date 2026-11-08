@@ -452,6 +452,94 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== Bilingual Quick Replies =====
+  const DEFAULT_QUICK_REPLIES = [{
+    id: "pricing-private-clinic",
+    category: "prices-payments",
+    enabled: true,
+    labels: { he: "מחירים והסדרים", en: "Prices & insurance arrangements" },
+    text: {
+      he: "שלום, תודה שפניתם לקשב פלוס.\\n\\nאנחנו מבינים כמה חשוב לדעת מראש מה העלויות ומה כלול בתהליך, לפני שמחליטים להתקדם.\\n\\nקשב פלוס היא מרפאה פרטית, ואין לנו הסדרים ישירים עם קופות החולים או חברות הביטוח.\\n\\nנשמח להסביר לכם על אפשרויות האבחון, מה כלול בתהליך ומה העלויות, כדי שתוכלו לקבל תמונה ברורה ומלאה לפני קבלת החלטה.\\n\\nאפשר ליצור איתנו קשר בטלפון 055-27-399-27, או פשוט להמשיך להתכתב איתנו כאן.\\n\\nכמובן, ללא כל התחייבות. נשמח לעזור!",
+      en: "Hi! Thank you for reaching out to Keshev Plus.\\n\\nWe understand how important it is to know the costs and what's included before deciding to proceed.\\n\\nKeshev Plus is a private clinic, and we don't have direct arrangements with Israel's health funds (Kupot Holim) or insurance companies.\\n\\nWe're happy to explain our assessment options, what's included, and the costs, so you know exactly what to expect before making any decision.\\n\\nYou can reach us by phone at 055-27-399-27, or simply continue chatting with us here.\\n\\nThere's absolutely no obligation. We're happy to help!"
+    }
+  }];
+
+  const getQuickReplies = async () => {
+    const setting = await storage.getSetting("quick_replies");
+    return Array.isArray(setting?.value) && setting.value.length ? setting.value : DEFAULT_QUICK_REPLIES;
+  };
+
+  app.get("/api/quick-replies", async (_req, res) => {
+    try {
+      const replies = await getQuickReplies();
+      return res.json(replies.filter((item: any) => item.enabled));
+    } catch (error) {
+      return res.status(500).json({ error: "Failed to load quick replies" });
+    }
+  });
+
+  app.get("/api/admin/quick-replies", async (req, res) => {
+    const userId = (req.session as any)?.userId;
+    if (!userId) return res.status(401).json({ error: "Not authenticated" });
+    const user = await storage.getUser(userId);
+    if (!hasAdminAccess(user)) return res.status(403).json({ error: "Admin access required" });
+    return res.json(await getQuickReplies());
+  });
+
+  app.put("/api/admin/quick-replies", async (req, res) => {
+    const userId = (req.session as any)?.userId;
+    if (!userId) return res.status(401).json({ error: "Not authenticated" });
+    const user = await storage.getUser(userId);
+    if (!hasAdminAccess(user)) return res.status(403).json({ error: "Admin access required" });
+    const rows = z.array(z.object({
+      id: z.string().min(1).max(100),
+      category: z.string().min(1).max(80),
+      enabled: z.boolean(),
+      labels: z.object({ he: z.string().max(160), en: z.string().max(160) }),
+      text: z.object({ he: z.string().max(10000), en: z.string().max(10000) }),
+    })).max(100).safeParse(req.body);
+    if (!rows.success) return res.status(400).json({ error: "Invalid quick reply data", details: rows.error.flatten() });
+    await storage.upsertSetting("quick_replies", rows.data);
+    return res.json(rows.data);
+  });
+
+  app.post("/api/quick-replies/adapt", async (req, res) => {
+    const userId = (req.session as any)?.userId;
+    if (!userId) return res.status(401).json({ error: "Not authenticated" });
+    const user = await storage.getUser(userId);
+    if (!hasAdminAccess(user)) return res.status(403).json({ error: "Admin access required" });
+    const { templateId, question, language = "he", channel = "chat" } = req.body || {};
+    if (typeof question !== "string" || !question.trim() || question.length > 5000) {
+      return res.status(400).json({ error: "A client question is required" });
+    }
+    const replies = await getQuickReplies();
+    const template = replies.find((item: any) => item.id === templateId && item.enabled);
+    if (!template) return res.status(404).json({ error: "Quick reply not found" });
+    const lang = language === "en" ? "en" : "he";
+    const apiKey = process.env.OPENAI_API_KEY || process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
+    if (!apiKey) return res.status(503).json({ error: "AI response adjustment is not configured" });
+    try {
+      const useDirectKey = !!process.env.OPENAI_API_KEY;
+      const openai = new OpenAI({
+        apiKey,
+        ...(useDirectKey ? {} : { baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL }),
+      });
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        temperature: 0.25,
+        max_completion_tokens: 650,
+        messages: [
+          { role: "system", content: "You help clinic staff adapt an approved Keshev Plus quick reply to a client's specific question. Preserve all verified facts and the intent of the template. Do not invent prices, reimbursement eligibility, medical advice, diagnosis, treatment, appointment availability, opening hours, or policies. If the question asks for information absent from the template, say briefly that the clinic team will confirm it, and invite the client to continue the conversation. Keep a professional, warm, concise tone. Output only the final message in the requested language. This is a draft for staff review, never send it." },
+          { role: "user", content: JSON.stringify({ language: lang, channel, approvedTemplate: template.text[lang], clientQuestion: question }) }
+        ]
+      });
+      return res.json({ text: completion.choices[0]?.message?.content?.trim() || template.text[lang] });
+    } catch (error) {
+      console.error("Quick reply adaptation failed:", error);
+      return res.status(500).json({ error: "Could not adapt the reply" });
+    }
+  });
+
   app.get("/api/settings/widgets", async (req, res) => {
     const settings = await storage.getWidgetSettings();
     res.json(settings);

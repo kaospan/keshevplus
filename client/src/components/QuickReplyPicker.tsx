@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
@@ -17,12 +17,12 @@ export default function QuickReplyPicker({ channel, clientQuestion = "", onInser
   const [draft, setDraft] = useState("");
   const [question, setQuestion] = useState(clientQuestion);
   const [adapting, setAdapting] = useState(false);
-  useMemo(() => {
+  useEffect(() => {
     fetch("/api/quick-replies").then(r => r.ok ? r.json() : []).then(rows => {
       setItems(rows.filter((x: QuickReply) => x.enabled));
       if (rows[0]) { setSelectedId(rows[0].id); setDraft(rows[0].text[lang]); }
     }).catch(() => {});
-  }, []);
+  }, [lang]);
   const selected = items.find(x => x.id === selectedId);
   const choose = (id: string) => { setSelectedId(id); const item = items.find(x => x.id === id); if (item) setDraft(item.text[lang]); };
   const adapt = async () => {

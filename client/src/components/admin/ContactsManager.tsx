@@ -10,6 +10,7 @@ import { Mail, Phone, User, Clock, Eye, EyeOff, ChevronDown, ChevronUp, Inbox, T
 import { SiWhatsapp } from 'react-icons/si'
 import { apiRequest, queryClient } from '@/lib/queryClient'
 import { cn } from '@/lib/utils'
+import QuickReplyPicker from '@/components/QuickReplyPicker'
 import type { Contact } from '@shared/schema'
 
 const STATUS_CONFIG: Record<string, { he: string; en: string; color: string }> = {
@@ -314,6 +315,21 @@ export default function ContactsManager() {
                       <div className="rounded-md bg-muted/50 p-3">
                         <p className="text-sm whitespace-pre-wrap">{contact.message}</p>
                       </div>
+
+                      {(contact.email || contact.phone) && (
+                        <QuickReplyPicker
+                          channel={contact.email ? "email" : "contact"}
+                          clientQuestion={contact.message}
+                          compact
+                          onInsert={(text) => {
+                            if (contact.email) {
+                              window.location.href = `mailto:${contact.email}?subject=${encodeURIComponent(isHe ? "קשב פלוס - בהמשך לפנייתך" : "Keshev Plus - Following up on your inquiry")}&body=${encodeURIComponent(text)}`;
+                            } else if (contact.phone) {
+                              window.open(formatWhatsAppUrl(contact.phone, text), "_blank", "noopener,noreferrer");
+                            }
+                          }}
+                        />
+                      )}
 
                       <div className="flex items-center gap-2 flex-wrap">
                         {contact.phone && (

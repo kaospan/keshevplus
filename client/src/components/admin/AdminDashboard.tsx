@@ -26,6 +26,7 @@ import ConversationsManager from './ConversationsManager'
 import EmailNotificationSettings from './EmailNotificationSettings'
 import VisualEditor from './VisualEditor'
 import WhatsAppManager from './WhatsAppManager'
+import QuickRepliesManager from './QuickRepliesManager'
 
 const languageCodeClass = "inline-flex w-6 shrink-0 justify-center font-sans text-sm font-semibold leading-none text-muted-foreground"
 const languageNameClass = "font-sans text-sm leading-none"
@@ -168,6 +169,7 @@ const AdminDashboard = () => {
     { value: 'clients', icon: Users, he: 'לידים ולקוחות', en: 'Leads & Clients' },
     { value: 'conversations', icon: MessageCircle, he: 'שיחות צ׳אט', en: 'Conversations' },
     { value: 'whatsapp', icon: Phone, he: 'וואטסאפ', en: 'WhatsApp' },
+    { value: 'quick-replies', icon: MessageCircle, he: 'תשובות מהירות', en: 'Quick Replies' },
     { value: 'questionnaires', icon: ClipboardList, he: 'שאלונים', en: 'Questionnaires' },
     { value: 'visual-editor', icon: Eye, he: 'עורך ויזואלי', en: 'Visual Editor' },
     { value: 'translations', icon: Languages, he: 'תרגומים', en: 'Translations' },
@@ -351,6 +353,10 @@ const AdminDashboard = () => {
 
           <TabsContent value="whatsapp" className="mt-0">
             <WhatsAppManager />
+          </TabsContent>
+
+          <TabsContent value="quick-replies" className="mt-0">
+            <QuickRepliesManager />
           </TabsContent>
 
           <TabsContent value="questionnaires" className="mt-0">

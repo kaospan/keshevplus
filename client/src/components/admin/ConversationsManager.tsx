@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { MessageCircle, Mail, Phone, User, ChevronDown, ChevronUp, CheckCircle, Bot, Trash2 } from 'lucide-react'
+import QuickReplyPicker from '@/components/QuickReplyPicker'
 
 interface Conversation {
   id: number
@@ -271,6 +272,15 @@ const ConversationsManager = () => {
                           ))
                         )}
                       </div>
+                      <QuickReplyPicker
+                        channel="chat"
+                        clientQuestion={[...expandedMessages].reverse().find(message => message.role === "user")?.content || ""}
+                        compact
+                        onInsert={(text) => {
+                          const subject = isHe ? "קשב פלוס - בהמשך לשיחתך" : "Keshev Plus - Following up on your chat";
+                          window.location.href = `mailto:${conv.visitorEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(text)}`;
+                        }}
+                      />
                       <div className="flex items-center gap-2 flex-wrap">
                         {!conv.reviewed && (
                           <Button

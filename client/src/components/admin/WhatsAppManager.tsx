@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Phone, Send, User } from 'lucide-react'
 import { SiWhatsapp } from 'react-icons/si'
+import QuickReplyPicker from '@/components/QuickReplyPicker'
 
 interface WhatsAppConversation {
   phone: string
@@ -219,7 +220,14 @@ const WhatsAppManager = () => {
                     <div ref={messagesEndRef} />
                   </div>
 
-                  <div className="p-3 border-t flex items-center gap-2">
+                  <div className="p-3 border-t space-y-2">
+                    <QuickReplyPicker
+                      channel="whatsapp"
+                      clientQuestion={[...messages].reverse().find(msg => msg.direction === 'inbound')?.content || ''}
+                      compact
+                      onInsert={text => setMessageText(text)}
+                    />
+                    <div className="flex items-center gap-2">
                     <Input
                       value={messageText}
                       onChange={e => setMessageText(e.target.value)}
@@ -237,6 +245,7 @@ const WhatsAppManager = () => {
                       <Send className={`h-4 w-4 ${isHe ? 'ml-1' : 'mr-1'}`} />
                       {isHe ? 'שלח' : 'Send'}
                     </Button>
+                    </div>
                   </div>
                 </>
               )}
